@@ -1,7 +1,7 @@
 // Signed, stateless tokens: a round token lists the questions a player is answering,
 // and a challenge code carries a finished round's scores into a "beat my score" link.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { isValidRound } from "./questions.ts";
+import { isRoundShape } from "./questions.ts";
 
 export type RoundMode = "daily" | "practice" | "challenge";
 
@@ -38,29 +38,29 @@ export function verifyRound(token: unknown): RoundClaims | null {
   if (!body || !sig || !safeEqual(sig, sign("round:" + body))) return null;
   try {
     const c = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as RoundClaims;
-    if (!["daily", "practice", "challenge"].includes(c.mode) || !isValidRound(c.ids)) return null;
+    if (!["daily", "practice", "challenge"].includes(c.mode) || !isRoundShape(c.ids)) return null;
     return c;
   } catch {
     return null;
   }
 }
 
-// Challenge code: 5 question ids + 5 scores, two base-36 chars each, then an 8-char signature.
-const b36 = (n: number) => n.toString(36).padStart(2, "0");
+// Challenge code: 5 question ids (3 base-36 chars each), 5 scores (2 chars each), then an 8-char signature.
+const b36 = (n: number, w: number) => n.toString(36).padStart(w, "0");
 
 export function makeChallenge(ids: number[], points: number[]): string {
-  const body = ids.map(b36).join("") + points.map(b36).join("");
+  const body = ids.map((i) => b36(i, 3)).join("") + points.map((p) => b36(p, 2)).join("");
   return body + sign("vs:" + body, 8);
 }
 
 export function readChallenge(code: unknown): { ids: number[]; points: number[] } | null {
-  if (typeof code !== "string" || !/^[0-9a-z]{20}[A-Za-z0-9_-]{8}$/.test(code)) return null;
-  const body = code.slice(0, 20);
-  if (!safeEqual(code.slice(20), sign("vs:" + body, 8))) return null;
-  const n: number[] = [];
-  for (let i = 0; i < 20; i += 2) n.push(parseInt(body.slice(i, i + 2), 36));
-  const ids = n.slice(0, 5), points = n.slice(5);
-  if (!isValidRound(ids) || points.some((p) => !(p >= 0 && p <= 100))) return null;
+  if (typeof code !== "string" || !/^[0-9a-z]{25}[A-Za-z0-9_-]{8}$/.test(code)) return null;
+  const body = code.slice(0, 25);
+  if (!safeEqual(code.slice(25), sign("vs:" + body, 8))) return null;
+  const ids: number[] = [], points: number[] = [];
+  for (let i = 0; i < 15; i += 3) ids.push(parseInt(body.slice(i, i + 3), 36));
+  for (let i = 15; i < 25; i += 2) points.push(parseInt(body.slice(i, i + 2), 36));
+  if (!isRoundShape(ids) || points.some((p) => !(p >= 0 && p <= 100))) return null;
   return { ids, points };
 }
 

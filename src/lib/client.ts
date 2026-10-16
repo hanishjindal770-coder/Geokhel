@@ -32,9 +32,9 @@ export async function api<T>(path: string, opts: { method?: string; body?: unkno
 
 /** Reads the scores out of a challenge code for display. The server checks the signature. */
 export function peekChallenge(code: string): number[] | null {
-  if (!/^[0-9a-z]{20}[A-Za-z0-9_-]{8}$/.test(code)) return null;
+  if (!/^[0-9a-z]{25}[A-Za-z0-9_-]{8}$/.test(code)) return null;
   const pts: number[] = [];
-  for (let i = 10; i < 20; i += 2) pts.push(parseInt(code.slice(i, i + 2), 36));
+  for (let i = 15; i < 25; i += 2) pts.push(parseInt(code.slice(i, i + 2), 36));
   return pts.every((p) => p >= 0 && p <= 100) ? pts : null;
 }
 

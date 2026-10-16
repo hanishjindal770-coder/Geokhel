@@ -11,8 +11,14 @@ export const POST = handle(async (req: Request) => {
   if (name.length < 2 || name.length > 40 || /[<>]/.test(name)) return bad("Give the group a name between 2 and 40 characters.");
   const store = getStore();
   if ((await store.groupsFor(me.id)).length >= 20) return bad("You can be in up to 20 groups.");
-  const group = await store.createGroup(me.id, name, newGroupCode());
-  return json({ group }, 201);
+  // Codes are random; on the rare clash, try a fresh one.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return json({ group: await store.createGroup(me.id, name, newGroupCode()) }, 201);
+    } catch (err) {
+      if (attempt >= 2 || !(err instanceof Error && err.message === "group code collision")) throw err;
+    }
+  }
 });
 
 // Look up a group by invite code (to show its name before joining).

@@ -8,11 +8,19 @@ export function createMemoryStore(): Store {
   const results = new Map<string, ResultRow>();
   const groups = new Map<string, Group & { ownerId: string }>();
   const members = new Map<string, Set<string>>();
+  const daily = new Map<string, number[]>();
 
   const key = (...p: (string | number)[]) => p.join("|");
   const pub = (p: Player): Player => ({ id: p.id, nickname: p.nickname, state: p.state });
 
   return {
+    async getDaily(day) {
+      return daily.get(day) ?? null;
+    },
+    async setDailyOnce(day, ids) {
+      if (!daily.has(day)) daily.set(day, [...ids]);
+      return daily.get(day)!;
+    },
     async createPlayer(tokenHash, nickname, state) {
       const p = { id: randomUUID(), tokenHash, nickname, state };
       players.set(p.id, p);
@@ -38,7 +46,8 @@ export function createMemoryStore(): Store {
       return true;
     },
     async saveResult(r) {
-      results.set(key(r.playerId, r.day), { ...r });
+      const k = key(r.playerId, r.day);
+      if (!results.has(k)) results.set(k, { ...r });
     },
     async resultDays(playerId) {
       return [...results.values()].filter((r) => r.playerId === playerId);
@@ -53,7 +62,7 @@ export function createMemoryStore(): Store {
         if (r.day !== day || (ids && !ids.has(r.playerId))) continue;
         const p = players.get(r.playerId);
         if (!p || (state && p.state !== state)) continue;
-        rows.push({ playerId: p.id, nickname: p.nickname, state: p.state, total: r.total, points: r.points });
+        rows.push({ playerId: p.id, nickname: p.nickname, state: p.state, total: r.total });
       }
       return rows.sort((a, b) => b.total - a.total).slice(0, limit);
     },

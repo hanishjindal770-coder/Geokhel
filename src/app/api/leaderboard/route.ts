@@ -45,12 +45,12 @@ export const GET = handle(async (req: Request) => {
   let rank = 0, prev = -1;
   const ranked = rows.map((r, i) => {
     if (r.total !== prev) { rank = i + 1; prev = r.total; }
-    return { rank, nickname: r.nickname, state: r.state, total: r.total, points: r.points, me: r.playerId === me?.id };
+    return { rank, nickname: r.nickname, state: r.state, total: r.total, me: r.playerId === me?.id };
   });
   let mine = ranked.find((r) => r.me) ?? null;
   if (!mine && me) {
     const r = await store.resultFor(me.id, day);
-    if (r) mine = { rank: 0, nickname: me.nickname, state: me.state, total: r.total, points: r.points, me: true };
+    if (r) mine = { rank: 0, nickname: me.nickname, state: me.state, total: r.total, me: true };
   }
   return json({ ...meta, title, rows: ranked, mine });
 });

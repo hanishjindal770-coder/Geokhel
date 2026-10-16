@@ -1,6 +1,6 @@
 import { bad, currentPlayer, handle, json, readJson } from "@/lib/api";
 import { istDate } from "@/lib/daily";
-import { QUESTIONS } from "@/lib/questions";
+import { byId, getBank } from "@/lib/bank";
 import { distanceKm, pointsFor, roundTotal, ROUND_LENGTH } from "@/lib/scoring";
 import { reveal } from "@/lib/reveal";
 import { getStore } from "@/lib/store";
@@ -15,7 +15,8 @@ export const POST = handle(async (req: Request) => {
   if (!Number.isInteger(idx) || idx < 0 || idx >= ROUND_LENGTH) return bad("Unknown question.");
   if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) return bad("That tap wasn't on the map.");
 
-  const q = QUESTIONS[round.ids[idx]];
+  const q = byId(await getBank(), round.ids[idx]);
+  if (!q) return bad("This question has been removed. Reload to start again.", 410);
   const km = distanceKm(lat, lon, q.lat, q.lon);
   const points = pointsFor(km);
   const row = { idx, points, km, lat, lon };
@@ -25,7 +26,7 @@ export const POST = handle(async (req: Request) => {
     const prior = Array.isArray(body.prior) ? body.prior.map(Number) : [];
     const all = [...prior.slice(0, idx), points];
     const done = idx === ROUND_LENGTH - 1 && all.length === ROUND_LENGTH && all.every((p) => p >= 0 && p <= 100);
-    return json({ ...reveal(round.ids[idx], row), ...(done ? { total: roundTotal(all), challenge: makeChallenge(round.ids, all) } : {}) });
+    return json({ ...reveal(q, row), ...(done ? { total: roundTotal(all), challenge: makeChallenge(round.ids, all) } : {}) });
   }
 
   // Daily: one answer per question, and only for today's round.
@@ -38,7 +39,7 @@ export const POST = handle(async (req: Request) => {
   const mine = guesses.find((g) => g.idx === idx)!;
   if (!saved && !mine) return bad("Could not save that guess. Try again.", 500);
 
-  const out: Record<string, unknown> = { ...reveal(round.ids[idx], mine), repeated: !saved };
+  const out: Record<string, unknown> = { ...reveal(q, mine), repeated: !saved };
   if (guesses.length === ROUND_LENGTH) {
     const pts = guesses.map((g) => g.points);
     const total = roundTotal(pts);

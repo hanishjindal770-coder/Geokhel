@@ -26,7 +26,6 @@ export interface BoardRow {
   nickname: string;
   state: string;
   total: number;
-  points: number[];
 }
 
 export interface StateRow {
@@ -43,6 +42,11 @@ export interface Group {
 }
 
 export interface Store {
+  /** The question ids saved for a day's round, if any. */
+  getDaily(day: string): Promise<number[] | null>;
+  /** Saves a day's round unless one is already saved; returns whichever is saved. */
+  setDailyOnce(day: string, ids: number[]): Promise<number[]>;
+
   createPlayer(tokenHash: string, nickname: string, state: string): Promise<Player>;
   playerByTokenHash(tokenHash: string): Promise<Player | null>;
   updatePlayer(id: string, patch: { nickname?: string; state?: string }): Promise<Player>;
@@ -51,6 +55,7 @@ export interface Store {
   /** Returns false when that question was already answered (no second tries). */
   insertGuess(g: GuessRow): Promise<boolean>;
 
+  /** Saves a finished daily round once; later calls for the same day are ignored. */
   saveResult(r: ResultRow): Promise<void>;
   resultDays(playerId: string): Promise<ResultRow[]>;
 
